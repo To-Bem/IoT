@@ -1,17 +1,16 @@
 /*
-  Tô Bem — firmware da lâmpada (protótipo GS 2026/2)
-  ---------------------------------------------------
-  Simulação no Wokwi: o radar LD2410C ainda não existe no Wokwi, então ele é
-  simulado por 2 chaves deslizantes (presença / movimento) e 1 potenciômetro
-  (distância do alvo até o teto). Quando o radar real chegar, troque
-  USAR_RADAR_REAL para 1 — o resto do código não muda.
+  Tô Bem — firmware da lâmpada (protótipo GS 2026/2) — versão HARDWARE REAL
+  ------------------------------------------------------------------------
+  Radar: HLK-LD2410C (padrão) ou HLK-LD2420 — escolha em RADAR_MODELO.
+    LD2410C: informa sozinho "em movimento" e "parado" + distâncias (biblioteca "ld2410", ncmreynolds).
+    LD2420 : informa presença + distância; o movimento é deduzido pela variação da distância.
 
   As 3 coisas separadas:
     1) Sensor (radar)  -> sempre ligado, não depende da luz
     2) Luz principal   -> só a pessoa controla (botão "Luz")
     3) Luz noturna     -> automática, discreta, só de madrugada com a luz apagada
 
-  Prioridade do anel de LED: ALERTA > feedback de botão > luz principal > luz noturna > apagado
+  Prioridade dos anéis: ALERTA > feedback de botão > luz principal > luz noturna > apagado
 */
 
 #include <WiFi.h>
@@ -20,12 +19,14 @@
 #include "DHTesp.h"
 
 // ============================ CONFIGURAÇÃO ============================
-#define USAR_RADAR_REAL 0          // 0 = simulado (Wokwi) | 1 = LD2410C real
-
-const char* WIFI_SSID  = "Wokwi-GUEST";   // no hardware real: Wi-Fi da casa
-const char* WIFI_SENHA = "";
+#define RADAR_MODELO 2410        // 2410 = HLK-LD2410C (5V)  |  2420 = HLK-LD2420 (3V3)
+const char* WIFI_SSID  = "SUA_REDE";      // não suba a senha real para o GitHub
+const char* WIFI_SENHA = "SUA_SENHA";
 const char* API_URL    = "";              // ex.: "http://IP-DA-VM:8080/api/eventos" — vazio = só imprime no Serial
 const int   DISPOSITIVO_ID = 1;
+
+const bool DEBUG_RADAR      = true;   // imprime tudo que o radar manda (desligue depois de calibrar)
+const bool DEMO_MADRUGADA   = true;   // true = considera sempre madrugada (para testar a luz noturna)
 
 // Tempos — valores CURTOS para demonstração (produto: ver comentários)
 const unsigned long TEMPO_QUEDA_MS        = 20000;  // parado no chão (produto: 20 min)
@@ -34,40 +35,55 @@ const unsigned long TEMPO_INATIVIDADE_MS  = 60000;  // ninguém detectado (produ
 const unsigned long DURACAO_NOTURNA_MS    = 15000;  // luz noturna acesa (produto: 3 min)
 const unsigned long JANELA_MOVIMENTO_MS   = 600000; // queda só conta se houve movimento nos últimos 10 min
 const unsigned long HEARTBEAT_MS          = 10000;  // produto: 60 s
-const unsigned long TEMPERATURA_MS        = 30000;  // envio periódico da temperatura
-const unsigned long TEMPO_CALOR_MS        = 10000;  // temperatura alta sustentada
+const unsigned long TEMPERATURA_MS        = 30000;
+const unsigned long TEMPO_CALOR_MS        = 10000;
 
-// Geometria: radar no teto (~2,6 m). Distância medida do radar até a pessoa.
-const int LIMIAR_CHAO_CM = 200;   // >= 200 cm do teto = altura do chão (deitado)
+// Radar: como decidir "movimento" (só LD2420) e "chão" (os dois)
+const int  LIMIAR_MOV_CM   = 15;      // variação de distância que conta como movimento
+const unsigned long MOV_JANELA_MS = 1500; // considera "movendo" até 1,5 s após a última variação
+const int  LIMIAR_CHAO_CM  = 200;     // teto real (~2,6 m): >= 200 cm = chão.
+                                      // Na maquete (lâmpada a ~50 cm), use algo como 35.
 const float LIMIAR_CALOR_C = 32.0;
 
-const uint8_t BRILHO_MAX = 90;    // ~35% de 255 (limite de corrente/calor)
+// Brilho: no USB do computador use BAIXO (40). Com a fonte 5V 3A pode subir para 90.
+const uint8_t BRILHO_MAX = 40;
 
-// ============================ PINOS ============================
-// Lâmpada
-#define PIN_LED_RING   26
-#define LED_COUNT      16
-#define PIN_RADAR_RX   16   // RX2 <- TX do LD2410C
-#define PIN_RADAR_TX   17   // TX2 -> RX do LD2410C
-// Simulação do radar (somente Wokwi)
-#define PIN_SIM_PRESENCA   32   // chave: alvo presente
-#define PIN_SIM_MOVIMENTO  14   // chave: alvo em movimento
-#define PIN_SIM_DISTANCIA  34   // potenciômetro: 0–300 cm do teto
-#define PIN_SIM_MADRUGADA  13   // chave: força "madrugada" na demo
-// Base (cabo de 8 vias)
-#define PIN_BTN_OK     18   // verde  "Estou bem"
-#define PIN_BTN_AWAY   19   // azul   "Saí / Voltei"
-#define PIN_BTN_LUZ    27   // branco "Luz"
-#define PIN_BUZZER     25
-#define PIN_DHT        4
-#define PIN_REED       33   // geladeira (no Wokwi: chave deslizante)
+// ============================ PINOS (conforme a montagem do grupo) ============================
+// Anéis de LED — ATENÇÃO: GPIO 34 e 35 são SÓ DE ENTRADA no ESP32 e não conseguem
+// mandar dados para os LEDs. Mova os fios para os pinos vizinhos na placa:
+//   fio que estava no D34 ("in led")  -> D33
+//   fio que estava no D35 ("out led") -> D25
+#define PIN_ANEL1      33     // DIN do anel 1 (antes no 34)
+#define PIN_ANEL2      25     // DIN do anel 2 (antes no 35). Se os anéis forem encadeados DOUT1->DIN2, coloque -1
+#define LEDS_POR_ANEL  16
 
-#if USAR_RADAR_REAL
+// Radar — mesmos pinos para os dois modelos
+//   LD2410C: TX -> D19 | RX -> D18 | OUT -> D21 | VCC -> 5V (VIN) | GND -> GND
+//   LD2420 : OT1-> D19 | RX -> D18 | OT2 -> D21 | 3V3 -> 3V3      | GND -> GND
+#define PIN_RADAR_RX   19     // ESP32 recebe  <- TX do radar
+#define PIN_RADAR_TX   18     // ESP32 envia   -> RX do radar
+#define PIN_RADAR_OT2  21     // saída digital de presença (OUT no LD2410C / OT2 no LD2420)
+#if RADAR_MODELO == 2410
+  #define RADAR_BAUD   256000
   #include <ld2410.h>
   ld2410 radar;
+#else
+  #define RADAR_BAUD   115200
 #endif
 
-Adafruit_NeoPixel anel(LED_COUNT, PIN_LED_RING, NEO_GRB + NEO_KHZ800);
+#define PIN_DHT        32     // DHT22 (dados)               -> D32
+
+// Base (ainda não montada) — pinos livres reservados
+#define PIN_BTN_OK     13     // verde  "Estou bem"
+#define PIN_BTN_AWAY   14     // azul   "Saí / Voltei"
+#define PIN_BTN_LUZ    4      // branco "Luz"
+#define PIN_BUZZER     26
+#define PIN_REED       27     // geladeira (MC-38)
+
+// ============================ OBJETOS ============================
+const int TOTAL_ANEL1 = (PIN_ANEL2 < 0) ? LEDS_POR_ANEL * 2 : LEDS_POR_ANEL;
+Adafruit_NeoPixel anel1(TOTAL_ANEL1, PIN_ANEL1, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel anel2(LEDS_POR_ANEL, (PIN_ANEL2 < 0 ? PIN_ANEL1 : PIN_ANEL2), NEO_GRB + NEO_KHZ800);
 DHTesp dht;
 
 // ============================ ESTADO ============================
@@ -90,11 +106,17 @@ unsigned long ultimoHeartbeat = 0, ultimaTemp = 0, calorDesde = 0, ultimoStatus 
 bool calorAvisado = false, movendoAntes = false, geladeiraAbertaAntes = false;
 float temperatura = NAN, umidade = NAN;
 
+// Radar: estado montado a partir das mensagens
+bool radarPresencaSerial = false;
+int  radarDistancia = 0, distanciaReferencia = -1;
+unsigned long ultimaMudancaDist = 0, ultimaMsgRadar = 0;
+char linhaRadar[64]; uint8_t posLinha = 0;
+
 // ============================ BOTÕES (debounce) ============================
 struct Botao { uint8_t pino; bool estado; bool ultimoLido; unsigned long mudou; };
 Botao btnOk{PIN_BTN_OK, HIGH, HIGH, 0}, btnAway{PIN_BTN_AWAY, HIGH, HIGH, 0}, btnLuz{PIN_BTN_LUZ, HIGH, HIGH, 0};
 
-bool apertou(Botao& b) {             // true uma vez, na borda de descida
+bool apertou(Botao& b) {
   bool lido = digitalRead(b.pino);
   if (lido != b.ultimoLido) { b.mudou = millis(); b.ultimoLido = lido; }
   if (millis() - b.mudou > 40 && lido != b.estado) {
@@ -105,7 +127,7 @@ bool apertou(Botao& b) {             // true uma vez, na borda de descida
 }
 
 // ============================ UTILITÁRIOS ============================
-uint32_t cor(uint8_t r, uint8_t g, uint8_t b) { return anel.Color(r, g, b); }
+uint32_t cor(uint8_t r, uint8_t g, uint8_t b) { return anel1.Color(r, g, b); }
 
 String agoraIso() {
   struct tm t;
@@ -136,7 +158,7 @@ void enviarEvento(const char* tipo, float valor = 1) {
 }
 
 bool ehMadrugada() {
-  if (digitalRead(PIN_SIM_MADRUGADA) == LOW) return true;   // chave da demo
+  if (DEMO_MADRUGADA) return true;
   struct tm t;
   if (getLocalTime(&t, 10)) return (t.tm_hour >= 22 || t.tm_hour < 6);
   return false;
@@ -144,18 +166,73 @@ bool ehMadrugada() {
 
 void bip(uint16_t freq, uint16_t ms) { tone(PIN_BUZZER, freq, ms); }
 
-// ============================ RADAR ============================
+// ============================ RADAR LD2420 ============================
+// O LD2420 (firmware padrão) manda linhas de texto como:
+//   "ON"            -> alguém detectado
+//   "OFF"           -> ninguém
+//   "Range 123"     -> distância do alvo (cm)
+// Se o seu firmware mandar outro formato, ligue DEBUG_RADAR e veja no Serial.
+void processarLinhaRadar(const char* l) {
+  ultimaMsgRadar = millis();
+  if (DEBUG_RADAR) Serial.printf("[RADAR] %s\n", l);
+  if (strncmp(l, "ON", 2) == 0)  radarPresencaSerial = true;
+  if (strncmp(l, "OFF", 3) == 0) radarPresencaSerial = false;
+  const char* p = strstr(l, "Range");
+  if (p) {
+    p += 5;
+    while (*p == ' ' || *p == ':') p++;
+    int d = atoi(p);
+    if (d >= 0 && d < 1000) { radarDistancia = d; radarPresencaSerial = true; }
+  }
+}
+
+void lerSerialRadar() {
+  while (Serial2.available()) {
+    char c = (char)Serial2.read();
+    if (c == '\r') continue;
+    if (c == '\n') {
+      linhaRadar[posLinha] = 0;
+      if (posLinha > 0) processarLinhaRadar(linhaRadar);
+      posLinha = 0;
+    } else if (c >= 32 && c < 127 && posLinha < sizeof(linhaRadar) - 1) {
+      linhaRadar[posLinha++] = c;
+    }
+  }
+}
+
 LeituraRadar lerRadar() {
   LeituraRadar r{false, false, 0};
-#if USAR_RADAR_REAL
+#if RADAR_MODELO == 2410
   radar.read();
-  r.presente = radar.presenceDetected();
+  if (radar.isConnected()) ultimaMsgRadar = millis();
+  r.presente = radar.presenceDetected() || digitalRead(PIN_RADAR_OT2) == HIGH;
   r.movendo  = radar.movingTargetDetected();
-  r.distanciaCm = r.movendo ? radar.movingTargetDistance() : radar.stationaryTargetDistance();
+  if (r.movendo)                           r.distanciaCm = radar.movingTargetDistance();
+  else if (radar.stationaryTargetDetected()) r.distanciaCm = radar.stationaryTargetDistance();
+  if (DEBUG_RADAR) {
+    static unsigned long ultimoDebug = 0;
+    if (millis() - ultimoDebug > 1000) {
+      ultimoDebug = millis();
+      Serial.printf("[RADAR] mov=%d dist=%dcm energia=%d | parado=%d dist=%dcm energia=%d\n",
+                    radar.movingTargetDetected(), radar.movingTargetDistance(), radar.movingTargetEnergy(),
+                    radar.stationaryTargetDetected(), radar.stationaryTargetDistance(), radar.stationaryTargetEnergy());
+    }
+  }
 #else
-  r.presente    = digitalRead(PIN_SIM_PRESENCA) == LOW;
-  r.movendo     = r.presente && digitalRead(PIN_SIM_MOVIMENTO) == LOW;
-  r.distanciaCm = map(analogRead(PIN_SIM_DISTANCIA), 0, 4095, 0, 300);
+  lerSerialRadar();
+  bool presencaPino = digitalRead(PIN_RADAR_OT2) == HIGH;
+  r.presente = presencaPino || radarPresencaSerial;
+  r.distanciaCm = r.presente ? radarDistancia : 0;
+  unsigned long agora = millis();
+  if (r.presente) {
+    if (distanciaReferencia < 0 || abs(radarDistancia - distanciaReferencia) >= LIMIAR_MOV_CM) {
+      distanciaReferencia = radarDistancia;
+      ultimaMudancaDist = agora;
+    }
+    r.movendo = (agora - ultimaMudancaDist) < MOV_JANELA_MS;
+  } else {
+    distanciaReferencia = -1;
+  }
 #endif
   return r;
 }
@@ -177,7 +254,7 @@ void resolverAlerta(const char* motivo, const char* evento) {
   alerta = SEM_ALERTA; nivel = NIVEL_0; paradoNoChaoDesde = 0;
   ultimaPresenca = millis();
   noTone(PIN_BUZZER);
-  feedbackCor = cor(0, 180, 0); feedbackAte = millis() + 1200;    // verde = ok
+  feedbackCor = cor(0, 180, 0); feedbackAte = millis() + 1200;
 }
 
 void atualizarAlerta() {
@@ -187,7 +264,6 @@ void atualizarAlerta() {
     Serial.printf(">>> Sem resposta: alerta %s escalado para a FAMÍLIA (nível 2)\n", nomeAlerta(alerta));
     enviarEvento(alerta == ALERTA_QUEDA ? "ALERTA_QUEDA_N2" : "ALERTA_INATIVIDADE_N2");
   }
-  // buzzer: nível 1 = bipe curto por segundo | nível 2 = bipe longo intermitente
   static unsigned long ultimoBip = 0;
   if (millis() - ultimoBip >= 1000) {
     ultimoBip = millis();
@@ -195,44 +271,61 @@ void atualizarAlerta() {
   }
 }
 
-// ============================ ANEL DE LED ============================
-void desenharAnel() {
+// ============================ ANÉIS DE LED ============================
+void pintar(uint32_t c) {
+  for (int i = 0; i < TOTAL_ANEL1; i++) anel1.setPixelColor(i, c);
+  anel1.show();
+  if (PIN_ANEL2 >= 0) {
+    for (int i = 0; i < LEDS_POR_ANEL; i++) anel2.setPixelColor(i, c);
+    anel2.show();
+  }
+}
+
+void desenharAneis() {
   uint32_t c = 0;
   bool pisca = (millis() / 400) % 2;
-  if (alerta != SEM_ALERTA) {                                   // 1) alerta
-    c = pisca ? (nivel == NIVEL_1_CASA ? cor(255, 170, 0) : cor(255, 0, 0)) : 0;
-  } else if (millis() < feedbackAte) {                          // 2) feedback de botão
-    c = feedbackCor;
-  } else if (luzPrincipal) {                                    // 3) luz principal
-    c = cor(255, 255, 230);
-  } else if (millis() < noturnaAte) {                           // 4) luz noturna (âmbar fraco)
-    c = cor(60, 25, 0);
+  if (alerta != SEM_ALERTA)        c = pisca ? (nivel == NIVEL_1_CASA ? cor(255, 170, 0) : cor(255, 0, 0)) : 0;
+  else if (millis() < feedbackAte) c = feedbackCor;
+  else if (luzPrincipal)           c = cor(255, 255, 230);
+  else if (millis() < noturnaAte)  c = cor(60, 25, 0);
+  pintar(c);
+}
+
+void testePartidaAneis() {
+  int total = TOTAL_ANEL1 + (PIN_ANEL2 >= 0 ? LEDS_POR_ANEL : 0);
+  for (int i = 0; i < total; i++) {
+    if (i < TOTAL_ANEL1) { anel1.setPixelColor(i, cor(0, 120, 255)); anel1.show(); }
+    else { anel2.setPixelColor(i - TOTAL_ANEL1, cor(0, 120, 255)); anel2.show(); }
+    delay(30);
   }
-  for (int i = 0; i < LED_COUNT; i++) anel.setPixelColor(i, c);
-  anel.show();
+  delay(400);
+  pintar(0);
 }
 
 // ============================ SETUP ============================
 void setup() {
   Serial.begin(115200);
+  delay(300);
+  Serial.printf("\nTô Bem — iniciando (hardware real, radar LD%d)\n", RADAR_MODELO);
+
   pinMode(PIN_BTN_OK, INPUT_PULLUP);
   pinMode(PIN_BTN_AWAY, INPUT_PULLUP);
   pinMode(PIN_BTN_LUZ, INPUT_PULLUP);
   pinMode(PIN_REED, INPUT_PULLUP);
-  pinMode(PIN_SIM_PRESENCA, INPUT_PULLUP);
-  pinMode(PIN_SIM_MOVIMENTO, INPUT_PULLUP);
-  pinMode(PIN_SIM_MADRUGADA, INPUT_PULLUP);
+  pinMode(PIN_RADAR_OT2, INPUT);
   pinMode(PIN_BUZZER, OUTPUT);
 
-  anel.begin(); anel.setBrightness(BRILHO_MAX); anel.clear(); anel.show();
-  dht.setup(PIN_DHT, DHTesp::DHT22);
+  anel1.begin(); anel1.setBrightness(BRILHO_MAX); anel1.clear(); anel1.show();
+  if (PIN_ANEL2 >= 0) { anel2.begin(); anel2.setBrightness(BRILHO_MAX); anel2.clear(); anel2.show(); }
+  testePartidaAneis();
 
-#if USAR_RADAR_REAL
-  Serial2.begin(256000, SERIAL_8N1, PIN_RADAR_RX, PIN_RADAR_TX);
-  radar.begin(Serial2);
+  dht.setup(PIN_DHT, DHTesp::DHT22);
+  Serial2.begin(RADAR_BAUD, SERIAL_8N1, PIN_RADAR_RX, PIN_RADAR_TX);
+#if RADAR_MODELO == 2410
+  delay(500);
+  Serial.println(radar.begin(Serial2) ? "Radar LD2410C conectado" : "Radar LD2410C NÃO respondeu — confira TX/RX (D19/D18) e o 5V");
 #endif
 
-  Serial.println("\nTô Bem — iniciando");
   WiFi.begin(WIFI_SSID, WIFI_SENHA);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) { delay(250); Serial.print("."); }
@@ -258,7 +351,6 @@ void loop() {
   }
   movendoAntes = r.movendo;
 
-  // Possível queda: parado + altura do chão + houve movimento antes
   bool paradoNoChao = r.presente && !r.movendo && r.distanciaCm >= LIMIAR_CHAO_CM;
   if (paradoNoChao) {
     if (paradoNoChaoDesde == 0) paradoNoChaoDesde = agora;
@@ -271,24 +363,22 @@ void loop() {
     paradoNoChaoDesde = 0;
   }
 
-  // Sem sinal de vida (desligado no modo ausente)
   if (!modoAusente && alerta == SEM_ALERTA && agora - ultimaPresenca > TEMPO_INATIVIDADE_MS) {
     enviarEvento("SEM_PRESENCA");
     iniciarAlerta(ALERTA_INATIVIDADE);
   }
-  // Se a pessoa voltou a se mexer durante um alerta de inatividade, resolve sozinho
   if (alerta == ALERTA_INATIVIDADE && r.movendo) resolverAlerta("movimento detectado", "ALERTA_RESOLVIDO_MOVIMENTO");
 
   atualizarAlerta();
 
-  // ---------- 2) LUZ PRINCIPAL: só a pessoa controla ----------
+  // ---------- 2) LUZ PRINCIPAL ----------
   if (apertou(btnLuz)) {
     luzPrincipal = !luzPrincipal;
     Serial.printf("Luz principal %s (radar continua ligado)\n", luzPrincipal ? "LIGADA" : "DESLIGADA");
     enviarEvento(luzPrincipal ? "LUZ_LIGADA" : "LUZ_DESLIGADA");
   }
 
-  // ---------- 3) LUZ NOTURNA: automática e discreta ----------
+  // ---------- 3) LUZ NOTURNA ----------
   if (!luzPrincipal && r.movendo && ehMadrugada()) noturnaAte = agora + DURACAO_NOTURNA_MS;
 
   // ---------- Botões da base ----------
@@ -310,7 +400,7 @@ void loop() {
   geladeiraAbertaAntes = geladeiraAberta;
 
   // ---------- Temperatura ----------
-  if (agora - ultimaTemp > 2500) {                 // DHT22: no máximo 1 leitura a cada 2 s
+  if (agora - ultimaTemp > 2500) {
     TempAndHumidity th = dht.getTempAndHumidity();
     if (!isnan(th.temperature)) { temperatura = th.temperature; umidade = th.humidity; }
     if (temperatura >= LIMIAR_CALOR_C) {
@@ -330,16 +420,18 @@ void loop() {
   // ---------- Heartbeat ----------
   if (agora - ultimoHeartbeat > HEARTBEAT_MS) { enviarEvento("HEARTBEAT"); ultimoHeartbeat = agora; }
 
-  // ---------- Status no Serial (evidência para a disciplina de IoT) ----------
+  // ---------- Status ----------
   if (agora - ultimoStatus > 3000) {
     const char* zona = !r.presente ? "ninguém" : (r.distanciaCm >= LIMIAR_CHAO_CM ? "CHÃO" : "sentado/em pé");
-    Serial.printf("[STATUS] presença=%d mov=%d dist=%dcm (%s) | luz=%s noturna=%s ausente=%d | %.1f°C | alerta=%s nível=%d\n",
+    bool radarFalando = (agora - ultimaMsgRadar) < 5000;
+    Serial.printf("[STATUS] OT2=%d serial=%s | presença=%d mov=%d dist=%dcm (%s) | luz=%s noturna=%s | %.1f°C | alerta=%s nível=%d\n",
+                  digitalRead(PIN_RADAR_OT2), radarFalando ? "ok" : "SEM DADOS",
                   r.presente, r.movendo, r.distanciaCm, zona,
-                  luzPrincipal ? "ON" : "off", millis() < noturnaAte ? "ON" : "off", modoAusente,
+                  luzPrincipal ? "ON" : "off", millis() < noturnaAte ? "ON" : "off",
                   temperatura, nomeAlerta(alerta), nivel);
     ultimoStatus = agora;
   }
 
-  desenharAnel();
+  desenharAneis();
   delay(20);
 }
