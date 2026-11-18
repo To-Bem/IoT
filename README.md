@@ -8,11 +8,9 @@
 
 | Nome completo | RM | Turma |
 |---|---|---|
-| _Nome do integrante 1_ | RM000000 | 2TDS |
-| _Nome do integrante 2_ | RM000000 | 2TDS |
-| _Nome do integrante 3_ | RM000000 | 2TDS |
-| _Nome do integrante 4_ | RM000000 | 2TDS |
-| _Nome do integrante 5_ | RM000000 | 2TDS |
+| Pedro Falchi | RM566967 | 2TDS |
+| Matheus Guimarães | RM567912 | 2TDS |
+| Lucas Shida | RM568194 | 2TDS |
 
 ## Onde está cada requisito da avaliação
 
