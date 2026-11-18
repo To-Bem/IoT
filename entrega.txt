@@ -1,13 +1,12 @@
 GLOBAL SOLUTION 2026/2 - CITIZENTECH
+
 Disruptive Architectures: IoT, IoB & Generative IA
 Projeto: To Bem - a lampada que cuida de quem mora sozinho
 
 Integrantes:
-RM000000 - Nome Completo do Integrante 1
-RM000000 - Nome Completo do Integrante 2
-RM000000 - Nome Completo do Integrante 3
-RM000000 - Nome Completo do Integrante 4
-RM000000 - Nome Completo do Integrante 5
+RM566967 - Pedro Falchi
+RM567912 - Matheus Guimarães
+RM568194 - Lucas Shida
 
 Repositorio no GitHub:
-https://github.com/USUARIO-OU-ORGANIZACAO/NOME-DO-REPOSITORIO
+https://github.com/To-Bem/IoT
