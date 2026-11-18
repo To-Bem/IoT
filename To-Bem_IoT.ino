@@ -25,7 +25,7 @@ const char* WIFI_SENHA = "SUA_SENHA";
 const char* API_URL    = "";              // ex.: "http://IP-DA-VM:8080/api/eventos" — vazio = só imprime no Serial
 const int   DISPOSITIVO_ID = 1;
  
-const bool DEBUG_RADAR      = true;   // imprime tudo que o radar manda (desligue depois de calibrar)
+const bool DEBUG_RADAR      = false;   // imprime tudo que o radar manda (desligue depois de calibrar)
 const bool DEMO_MADRUGADA   = true;   // true = considera sempre madrugada (para testar a luz noturna)
  
 // Tempos — valores CURTOS para demonstração (produto: ver comentários)
@@ -43,7 +43,11 @@ const int  LIMIAR_MOV_CM   = 15;      // variação de distância que conta como
 const unsigned long MOV_JANELA_MS = 1500; // considera "movendo" até 1,5 s após a última variação
 const int  LIMIAR_CHAO_CM  = 200;     // teto real (~2,6 m): >= 200 cm = chão.
                                       // Na maquete (lâmpada a ~50 cm), use algo como 35.
+const int  HISTERESE_CM    = 15;      // para sair do "chão", a distância precisa cair 15 cm abaixo do limiar
+const float SUAVIZACAO_MS     = 1500;     // média móvel da distância: 0.2 = suave, 1.0 = sem filtro
+const unsigned long INTERVALO_EVENTO_MOV_MS = 15000;  // manda MOVIMENTO no máximo a cada 15 s
 const float LIMIAR_CALOR_C = 32.0;
+const unsigned long INTERVALO_STATUS_MS = 1000;   // uma linha de status por segundo
  
 // Brilho: no USB do computador use BAIXO (40). Com a fonte 5V 3A pode subir para 90.
 const uint8_t BRILHO_MAX = 40;
@@ -105,6 +109,9 @@ unsigned long feedbackAte = 0; uint32_t feedbackCor = 0;
 unsigned long ultimoHeartbeat = 0, ultimaTemp = 0, calorDesde = 0, ultimoStatus = 0;
 bool calorAvisado = false, movendoAntes = false, geladeiraAbertaAntes = false;
 float temperatura = NAN, umidade = NAN;
+float distSuave = -1;          // distância filtrada (média móvel)
+bool  noChao = false;          // estado "altura do chão" com histerese
+unsigned long ultimoEventoMov = 0;
  
 // Radar: estado montado a partir das mensagens
 bool radarPresencaSerial = false;
@@ -234,6 +241,23 @@ LeituraRadar lerRadar() {
     distanciaReferencia = -1;
   }
 #endif
+  // Média móvel: tira a oscilação natural da leitura
+  static unsigned long ultimaSuav = 0;
+  unsigned long agoraF = millis();
+  float dt = (ultimaSuav == 0) ? 0 : (float)(agoraF - ultimaSuav);
+  ultimaSuav = agoraF;
+  if (r.presente && r.distanciaCm > 0) {
+    float alfa = dt / (SUAVIZACAO_MS + dt);
+    distSuave = (distSuave < 0) ? r.distanciaCm : distSuave + alfa * (r.distanciaCm - distSuave);
+    r.distanciaCm = (int)(distSuave + 0.5);
+  } else if (!r.presente) {
+    distSuave = -1;
+  }
+
+  // Histerese: entra no "chão" no limiar e só sai 15 cm abaixo dele
+  if (!r.presente) noChao = false;
+  else if (!noChao && r.distanciaCm >= LIMIAR_CHAO_CM) noChao = true;
+  else if (noChao && r.distanciaCm < LIMIAR_CHAO_CM - HISTERESE_CM) noChao = false;
   return r;
 }
  
@@ -345,13 +369,16 @@ void loop() {
   // ---------- 1) SENSOR: sempre ligado ----------
   if (r.presente) ultimaPresenca = agora;
   if (r.movendo) {
-    if (!movendoAntes) enviarEvento("MOVIMENTO", r.distanciaCm);
+    if (!movendoAntes && agora - ultimoEventoMov > INTERVALO_EVENTO_MOV_MS) {
+      enviarEvento("MOVIMENTO", r.distanciaCm);
+      ultimoEventoMov = agora;
+    }
     ultimoMovimento = agora;
     if (modoAusente) { modoAusente = false; Serial.println("Presença detectada: modo ausente desligado"); enviarEvento("BOTAO_VOLTEI"); }
   }
   movendoAntes = r.movendo;
  
-  bool paradoNoChao = r.presente && !r.movendo && r.distanciaCm >= LIMIAR_CHAO_CM;
+  bool paradoNoChao = r.presente && !r.movendo && noChao;
   if (paradoNoChao) {
     if (paradoNoChaoDesde == 0) paradoNoChaoDesde = agora;
     bool houveMovimentoAntes = (paradoNoChaoDesde - ultimoMovimento) < JANELA_MOVIMENTO_MS;
@@ -421,8 +448,8 @@ void loop() {
   if (agora - ultimoHeartbeat > HEARTBEAT_MS) { enviarEvento("HEARTBEAT"); ultimoHeartbeat = agora; }
  
   // ---------- Status ----------
-  if (agora - ultimoStatus > 3000) {
-    const char* zona = !r.presente ? "ninguém" : (r.distanciaCm >= LIMIAR_CHAO_CM ? "CHÃO" : "sentado/em pé");
+  if (agora - ultimoStatus >= INTERVALO_STATUS_MS) {
+    const char* zona = !r.presente ? "ninguém" : (noChao ? "CHÃO" : "sentado/em pé");
     bool radarFalando = (agora - ultimaMsgRadar) < 5000;
     Serial.printf("[STATUS] OUT=%d serial=%s | presença=%d mov=%d dist=%dcm (%s) | luz=%s noturna=%s | %.1f°C | alerta=%s nível=%d\n",
                   digitalRead(PIN_RADAR_OUT), radarFalando ? "ok" : "SEM DADOS",
