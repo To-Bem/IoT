@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "author": "Grupo Tô Bem — GS 2026/2",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led-ring",
+      "id": "anel",
+      "top": -260,
+      "left": 40,
+      "attrs": {
+        "pixels": "16"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnOk",
+      "top": 60,
+      "left": 260,
+      "attrs": {
+        "color": "green",
+        "label": "Estou bem"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnAway",
+      "top": 140,
+      "left": 260,
+      "attrs": {
+        "color": "blue",
+        "label": "Saí / Voltei"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnLuz",
+      "top": 220,
+      "left": 260,
+      "attrs": {
+        "color": "white",
+        "label": "Luz"
+      }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": -40,
+      "left": 420,
+      "attrs": {
+        "volume": "0.2"
+      }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht",
+      "top": 60,
+      "left": 440,
+      "attrs": {
+        "temperature": "26",
+        "humidity": "55"
+      }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "swGeladeira",
+      "top": 240,
+      "left": 440,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "swPresenca",
+      "top": 0,
+      "left": -200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "swMovimento",
+      "top": 70,
+      "left": -200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "swMadrugada",
+      "top": 140,
+      "left": -200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "potDistancia",
+      "top": 210,
+      "left": -230,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "esp:TX0",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX0",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
+      "anel:VCC",
+      "esp:VIN",
+      "red",
+      []
+    ],
+    [
+      "anel:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "anel:DIN",
+      "esp:D26",
+      "orange",
+      []
+    ],
+    [
+      "btnOk:1.l",
+      "esp:D18",
+      "green",
+      []
+    ],
+    [
+      "btnOk:2.l",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "btnAway:1.l",
+      "esp:D19",
+      "green",
+      []
+    ],
+    [
+      "btnAway:2.l",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "btnLuz:1.l",
+      "esp:D27",
+      "green",
+      []
+    ],
+    [
+      "btnLuz:2.l",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "buzzer:2",
+      "esp:D25",
+      "purple",
+      []
+    ],
+    [
+      "buzzer:1",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "dht:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "dht:SDA",
+      "esp:D4",
+      "green",
+      []
+    ],
+    [
+      "dht:GND",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "swGeladeira:2",
+      "esp:D33",
+      "green",
+      []
+    ],
+    [
+      "swGeladeira:1",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "swPresenca:2",
+      "esp:D32",
+      "blue",
+      []
+    ],
+    [
+      "swPresenca:1",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "swMovimento:2",
+      "esp:D14",
+      "blue",
+      []
+    ],
+    [
+      "swMovimento:1",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "swMadrugada:2",
+      "esp:D13",
+      "blue",
+      []
+    ],
+    [
+      "swMadrugada:1",
+      "esp:GND.2",
+      "black",
+      []
+    ],
+    [
+      "potDistancia:SIG",
+      "esp:D34",
+      "blue",
+      []
+    ],
+    [
+      "potDistancia:VCC",
+      "esp:3V3",
+      "red",
+      []
+    ],
+    [
+      "potDistancia:GND",
+      "esp:GND.2",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}

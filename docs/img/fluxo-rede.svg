@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><defs><marker id="m1a7f37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker><marker id="m5b6475" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6475"/></marker><marker id="m2b4c9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2b4c9b"/></marker></defs><rect width="100%" height="100%" fill="#ffffff"/><text x="600.0" y="34" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="600.0" dy="0.0" font-weight="bold">Tô Bem — topologia de rede e caminho de um evento</tspan></text>
+<text x="600.0" y="56" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" text-anchor="middle" fill="#5b6475"><tspan x="600.0" dy="0.0" font-weight="normal">Endereços IP de exemplo · portas conforme a configuração do grupo</tspan></text>
+<rect x="15" y="80" width="545" height="400" rx="14" fill="#fff6ec" stroke="#fff6ec" stroke-width="0" opacity="1"/>
+<text x="30" y="104" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="start" fill="#c4600a"><tspan x="30" dy="0.0" font-weight="bold">CASA DO IDOSO — rede local (LAN) 192.168.0.0/24</tspan></text>
+<rect x="575" y="80" width="610" height="400" rx="14" fill="#eef4ff" stroke="#eef4ff" stroke-width="0" opacity="1"/>
+<text x="590" y="104" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="start" fill="#2b4c9b"><tspan x="590" dy="0.0" font-weight="bold">INTERNET E NUVEM</tspan></text>
+<rect x="30" y="125" width="175" height="105" rx="10" fill="#fff" stroke="#1a7f37" stroke-width="1.5" opacity="1"/>
+<text x="117.5" y="159.45499999999998" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="117.5" dy="0.0" font-weight="bold">Nó 1 · Lâmpada</tspan></text>
+<text x="117.5" y="179.53" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="117.5" dy="0.0" font-weight="normal">ESP32 · dispositivoId 1</tspan><tspan x="117.5" dy="15.2" font-weight="normal">IP 192.168.0.50</tspan><tspan x="117.5" dy="15.2" font-weight="normal">(DHCP)</tspan></text>
+<rect x="30" y="255" width="175" height="95" rx="10" fill="#fff" stroke="#1a7f37" stroke-width="1.5" opacity="1"/>
+<text x="117.5" y="292.045" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="117.5" dy="0.0" font-weight="bold">Nó 2 · Geladeira</tspan></text>
+<text x="117.5" y="312.12" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="117.5" dy="0.0" font-weight="normal">ESP32 · dispositivoId 2</tspan><tspan x="117.5" dy="15.2" font-weight="normal">IP 192.168.0.51</tspan></text>
+<rect x="280" y="160" width="165" height="140" rx="10" fill="#fff" stroke="#c4600a" stroke-width="1.5" opacity="1"/>
+<text x="362.5" y="204.36499999999998" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="362.5" dy="0.0" font-weight="bold">Roteador Wi-Fi</tspan></text>
+<text x="362.5" y="224.44" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="362.5" dy="0.0" font-weight="normal">LAN 192.168.0.1</tspan><tspan x="362.5" dy="15.2" font-weight="normal">2,4 GHz · WPA2</tspan><tspan x="362.5" dy="15.2" font-weight="normal">DHCP · NAT</tspan><tspan x="362.5" dy="15.2" font-weight="normal">DNS (encaminha)</tspan></text>
+<rect x="30" y="380" width="175" height="85" rx="10" fill="#fff" stroke="#5b6475" stroke-width="1.5" stroke-dasharray="5 4" opacity="1"/>
+<text x="117.5" y="411.87" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="117.5" dy="0.0" font-weight="bold">PC do grupo (teste)</tspan></text>
+<text x="117.5" y="431.66999999999996" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="117.5" dy="0.0" font-weight="normal">api-mock :8080</tspan><tspan x="117.5" dy="15.2" font-weight="normal">IP 192.168.0.10</tspan></text>
+<rect x="465" y="175" width="85" height="110" rx="10" fill="#fff" stroke="#c4600a" stroke-width="1.5" opacity="1"/>
+<text x="507.5" y="211.78" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="507.5" dy="0.0" font-weight="bold">Modem</tspan></text>
+<text x="507.5" y="231.58" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="507.5" dy="0.0" font-weight="normal">ONT</tspan><tspan x="507.5" dy="15.2" font-weight="normal">IP</tspan><tspan x="507.5" dy="15.2" font-weight="normal">público</tspan></text>
+<path d="M205,178 L280,205" fill="none" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#m1a7f37)" stroke-dasharray="7 5" stroke-linejoin="round"/>
+<path d="M205,302 L280,260" fill="none" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#m1a7f37)" stroke-dasharray="7 5" stroke-linejoin="round"/>
+<rect x="221.6" y="158" width="40.800000000000004" height="20.3" rx="4" fill="#ffffff" stroke="#ffffff" stroke-width="0" opacity="0.95"/>
+<text x="242.0" y="170" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#1a7f37"><tspan x="242.0" dy="0.0" font-weight="bold">Wi-Fi</tspan></text>
+<path d="M205,422 L330,422 L330,300" fill="none" stroke="#5b6475" stroke-width="2" marker-end="url(#m5b6475)" marker-start="url(#m5b6475)" stroke-dasharray="5 4" stroke-linejoin="round"/>
+<rect x="227.72" y="403.5" width="80.56" height="19.65" rx="4" fill="#ffffff" stroke="#ffffff" stroke-width="0" opacity="0.95"/>
+<text x="268.0" y="415" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#1d2433"><tspan x="268.0" dy="0.0" font-weight="normal">Wi-Fi / cabo</tspan></text>
+<path d="M445,230 L465,230" fill="none" stroke="#5b6475" stroke-width="2" marker-end="url(#m5b6475)" stroke-linejoin="round"/>
+<ellipse cx="680" cy="230" rx="85" ry="52" fill="#fff" stroke="#6941c6" stroke-width="1.5"/>
+<text x="680" y="226" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="680" dy="0.0" font-weight="bold">Internet</tspan></text>
+<text x="680" y="244" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#5b6475"><tspan x="680" dy="0.0" font-weight="normal">rotas IP</tspan></text>
+<path d="M550,230 L595,230" fill="none" stroke="#5b6475" stroke-width="2" marker-end="url(#m5b6475)" stroke-linejoin="round"/>
+<rect x="800" y="125" width="370" height="230" rx="12" fill="#ffffff" stroke="#2b4c9b" stroke-width="1.5" stroke-dasharray="6 4" opacity="1"/>
+<text x="815" y="146" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="start" fill="#2b4c9b"><tspan x="815" dy="0.0" font-weight="bold">VM Azure · IP público fixo</tspan></text>
+<rect x="815" y="160" width="105" height="180" rx="10" fill="#fff" stroke="#2b4c9b" stroke-width="1.5" opacity="1"/>
+<text x="867.5" y="218.25" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="867.5" dy="0.0" font-weight="bold">NSG</tspan></text>
+<text x="867.5" y="237.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="867.5" dy="0.0" font-weight="normal">firewall</tspan><tspan x="867.5" dy="14.5" font-weight="normal">TCP 8080</tspan><tspan x="867.5" dy="14.5" font-weight="normal">TCP 8081</tspan><tspan x="867.5" dy="14.5" font-weight="normal">SSH só do</tspan><tspan x="867.5" dy="14.5" font-weight="normal">IP do grupo</tspan></text>
+<text x="1045" y="175" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#5b6475"><tspan x="1045" dy="0.0" font-weight="bold">Docker Compose</tspan></text>
+<rect x="940" y="185" width="215" height="70" rx="10" fill="#fff" stroke="#2b4c9b" stroke-width="1.5" opacity="1"/>
+<text x="1047.5" y="216.785" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="1047.5" dy="0.0" font-weight="bold">API .NET (container)</tspan></text>
+<text x="1047.5" y="236.31" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="1047.5" dy="0.0" font-weight="normal">POST /api/eventos · :8080</tspan></text>
+<rect x="940" y="268" width="215" height="70" rx="10" fill="#fff" stroke="#2b4c9b" stroke-width="1.5" opacity="1"/>
+<text x="1047.5" y="299.785" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="1047.5" dy="0.0" font-weight="bold">API Java (container)</tspan></text>
+<text x="1047.5" y="319.31" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="1047.5" dy="0.0" font-weight="normal">REST + JWT · :8081</tspan></text>
+<path d="M765,230 L815,230" fill="none" stroke="#2b4c9b" stroke-width="2.5" marker-end="url(#m2b4c9b)" stroke-linejoin="round"/>
+<path d="M920,220 L940,220" fill="none" stroke="#2b4c9b" stroke-width="2" marker-end="url(#m2b4c9b)" stroke-linejoin="round"/>
+<path d="M920,303 L940,303" fill="none" stroke="#2b4c9b" stroke-width="2" marker-end="url(#m2b4c9b)" marker-start="url(#m2b4c9b)" stroke-linejoin="round"/>
+<rect x="940" y="385" width="215" height="80" rx="10" fill="#fff" stroke="#2b4c9b" stroke-width="1.5" opacity="1"/>
+<text x="1047.5" y="414.37" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="1047.5" dy="0.0" font-weight="bold">Oracle (FIAP)</tspan></text>
+<text x="1047.5" y="434.16999999999996" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="1047.5" dy="0.0" font-weight="normal">oracle.fiap.com.br :1521</tspan><tspan x="1047.5" dy="15.2" font-weight="normal">EVENTO · ALERTA</tspan></text>
+<path d="M1160,220 L1172,220 L1172,425 L1155,425" fill="none" stroke="#2b4c9b" stroke-width="2" marker-end="url(#m2b4c9b)" stroke-linejoin="round"/>
+<path d="M1155,303 L1165,303 L1165,412 L1155,412" fill="none" stroke="#2b4c9b" stroke-width="2" marker-start="url(#m2b4c9b)" stroke-linejoin="round"/>
+<rect x="600" y="385" width="210" height="80" rx="10" fill="#fff" stroke="#1a7f37" stroke-width="1.5" opacity="1"/>
+<text x="705.0" y="414.37" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#1d2433"><tspan x="705.0" dy="0.0" font-weight="bold">Celular da família</tspan></text>
+<text x="705.0" y="434.16999999999996" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#3c4557"><tspan x="705.0" dy="0.0" font-weight="normal">App Flutter · 4G ou Wi-Fi</tspan><tspan x="705.0" dy="15.2" font-weight="normal">HTTPS + JWT</tspan></text>
+<path d="M810,425 L867,425 L867,340" fill="none" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#m1a7f37)" marker-start="url(#m1a7f37)" stroke-linejoin="round"/>
+<circle cx="34" cy="128" r="12" fill="#2b4c9b"/>
+<text x="34" y="132.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="34" dy="0.0" font-weight="bold">1</tspan></text>
+<circle cx="242" cy="205" r="12" fill="#2b4c9b"/>
+<text x="242" y="209.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="242" dy="0.0" font-weight="bold">2</tspan></text>
+<circle cx="455" cy="205" r="12" fill="#2b4c9b"/>
+<text x="455" y="209.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="455" dy="0.0" font-weight="bold">3</tspan></text>
+<circle cx="580" cy="210" r="12" fill="#2b4c9b"/>
+<text x="580" y="214.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="580" dy="0.0" font-weight="bold">4</tspan></text>
+<circle cx="790" cy="210" r="12" fill="#2b4c9b"/>
+<text x="790" y="214.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="790" dy="0.0" font-weight="bold">5</tspan></text>
+<circle cx="1135" cy="370" r="12" fill="#2b4c9b"/>
+<text x="1135" y="374.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="1135" dy="0.0" font-weight="bold">6</tspan></text>
+<circle cx="835" cy="440" r="12" fill="#2b4c9b"/>
+<text x="835" y="444.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="835" dy="0.0" font-weight="bold">7</tspan></text>
+<circle cx="295" cy="440" r="12" fill="#2b4c9b"/>
+<text x="295" y="444.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="295" dy="0.0" font-weight="bold">8</tspan></text>
+<text x="30" y="503" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="30" dy="0.0" font-weight="bold">Caminho de um evento (ex.: ALERTA_QUEDA_N1)</tspan></text>
+<circle cx="42" cy="544" r="12" fill="#2b4c9b"/>
+<text x="42" y="548.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="42" dy="0.0" font-weight="bold">1</tspan></text>
+<text x="64" y="549" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="64" dy="0.0" font-weight="bold">Leitura e decisão na borda</tspan></text>
+<text x="64" y="568" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="64" dy="0.0" font-weight="normal">Radar (UART), DHT22 e botões chegam ao ESP32, que decide o alerta local e</tspan><tspan x="64" dy="15.8" font-weight="normal">monta o JSON.</tspan></text>
+<circle cx="42" cy="610" r="12" fill="#2b4c9b"/>
+<text x="42" y="614.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="42" dy="0.0" font-weight="bold">2</tspan></text>
+<text x="64" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="64" dy="0.0" font-weight="bold">Enlace sem fio</tspan></text>
+<text x="64" y="634" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="64" dy="0.0" font-weight="normal">O evento sai em quadros Wi-Fi 802.11n (2,4 GHz) cifrados com WPA2; IP de</tspan><tspan x="64" dy="15.8" font-weight="normal">origem privado via DHCP.</tspan></text>
+<circle cx="42" cy="676" r="12" fill="#2b4c9b"/>
+<text x="42" y="680.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="42" dy="0.0" font-weight="bold">3</tspan></text>
+<text x="64" y="681" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="64" dy="0.0" font-weight="bold">Saída da casa (NAT)</tspan></text>
+<text x="64" y="700" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="64" dy="0.0" font-weight="normal">O roteador troca o IP privado pelo IP público do modem e guarda a conexão para</tspan><tspan x="64" dy="15.8" font-weight="normal">a resposta voltar.</tspan></text>
+<circle cx="42" cy="742" r="12" fill="#2b4c9b"/>
+<text x="42" y="746.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="42" dy="0.0" font-weight="bold">4</tspan></text>
+<text x="64" y="747" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="64" dy="0.0" font-weight="bold">Internet</tspan></text>
+<text x="64" y="766" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="64" dy="0.0" font-weight="normal">Pacotes TCP/IP são roteados até o IP público da VM; a hora dos eventos vem do</tspan><tspan x="64" dy="15.8" font-weight="normal">NTP (UDP 123).</tspan></text>
+<circle cx="632" cy="544" r="12" fill="#2b4c9b"/>
+<text x="632" y="548.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="632" dy="0.0" font-weight="bold">5</tspan></text>
+<text x="654" y="549" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="654" dy="0.0" font-weight="bold">Entrada na nuvem</tspan></text>
+<text x="654" y="568" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="654" dy="0.0" font-weight="normal">O NSG só deixa passar as portas das APIs; a API .NET valida e responde 201</tspan><tspan x="654" dy="15.8" font-weight="normal">Created ou 400.</tspan></text>
+<circle cx="632" cy="610" r="12" fill="#2b4c9b"/>
+<text x="632" y="614.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="632" dy="0.0" font-weight="bold">6</tspan></text>
+<text x="654" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="654" dy="0.0" font-weight="bold">Persistência e regra</tspan></text>
+<text x="654" y="634" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="654" dy="0.0" font-weight="normal">A API grava o EVENTO no Oracle (:1521); o PL/SQL avalia o risco e gera ALERTA.</tspan><tspan x="654" dy="15.8" font-weight="normal"></tspan></text>
+<circle cx="632" cy="676" r="12" fill="#2b4c9b"/>
+<text x="632" y="680.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="632" dy="0.0" font-weight="bold">7</tspan></text>
+<text x="654" y="681" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="654" dy="0.0" font-weight="bold">Aviso à família</tspan></text>
+<text x="654" y="700" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="654" dy="0.0" font-weight="normal">O app consulta a API Java por HTTPS com token JWT e mostra/confirma o alerta.</tspan><tspan x="654" dy="15.8" font-weight="normal"></tspan></text>
+<circle cx="632" cy="742" r="12" fill="#2b4c9b"/>
+<text x="632" y="746.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#fff"><tspan x="632" dy="0.0" font-weight="bold">8</tspan></text>
+<text x="654" y="747" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" text-anchor="start" fill="#1d2433"><tspan x="654" dy="0.0" font-weight="bold">Teste em rede local</tspan></text>
+<text x="654" y="766" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" text-anchor="start" fill="#3c4557"><tspan x="654" dy="0.0" font-weight="normal">Sem nuvem: o ESP32 envia para o api-mock no PC do grupo (mesmo Wi-Fi) e o CSV</tspan><tspan x="654" dy="15.8" font-weight="normal">vira evidência.</tspan></text></svg>

@@ -1,0 +1,3 @@
+# Bibliotecas do projeto Tô Bem (Wokwi)
+Adafruit NeoPixel
+DHT sensor library for ESPx
