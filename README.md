@@ -316,8 +316,8 @@ O detalhamento de cada escolha, com as alternativas consideradas, está em **[`d
 
 | Disciplina | Repositório | Relação com este |
 |---|---|---|
-| .NET — API de telemetria | _link_ | Recebe o `POST /api/eventos` do ESP32 |
-| Java — API principal | _link_ | Alertas, contatos e escalonamento consumidos pelo app |
+| .NET — API de telemetria | https://github.com/To-Bem/.NET | Recebe o `POST /api/eventos` do ESP32 |
+| Java — API principal | https://github.com/To-Bem/JAVA | Alertas, contatos e escalonamento consumidos pelo app |
 | Banco de Dados — Oracle + PL/SQL | _link_ | `PRC_REGISTRAR_EVENTO`, `PRC_AVALIAR_RISCO` |
-| Mobile — app | _link_ | Painel da família |
-| DevOps — VM Azure + Docker | _link_ | Hospeda as APIs |
+| Mobile — app | https://github.com/To-Bem/Mobile | Painel da família |
+| DevOps — VM Azure + Docker | https://github.com/To-Bem/JAVA | Hospeda as APIs |
