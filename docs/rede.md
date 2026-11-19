@@ -169,7 +169,24 @@ sequenceDiagram
 | `TEMPERATURA_ALTA` | lâmpada | °C |
 | `GELADEIRA_ABERTA` | geladeira (ou lâmpada, se o MC-38 estiver no D27) | 1 |
 
-> A API .NET precisa aceitar **todos** esses tipos. Um tipo fora da lista dela volta com 400 e o evento se perde. O servidor de teste (`ferramentas/api-mock`) usa exatamente esta lista e serve de referência para alinhar os repositórios.
+> O servidor de eventos (`ferramentas/api-mock`) valida exatamente esta lista e serve de referência para alinhar os repositórios.
+
+### 8.1 Como o evento chega na API Java e no app
+
+A [API Java](https://github.com/To-Bem/JAVA) usa outro contrato, e o firmware não fala com ela direto. Quem traduz é o servidor de eventos em **modo ponte** (`servidor_eventos.py --java URL`, no PC da casa ou do laboratório):
+
+| Diferença | Firmware | API Java | O que a ponte faz |
+|---|---|---|---|
+| Rota | `POST /api/eventos` | `POST /api/dispositivos/{id}/evento` | Monta a rota com o `dispositivoId` |
+| Autenticação | nenhuma | JWT de ADMIN/MANAGER (`POST /api/auth/login`, vale 1 h) | Faz login com `JAVA_EMAIL`/`JAVA_SENHA` e entra de novo quando o token vence |
+| `dataHora` | ISO com fuso (`...-03:00`) | `LocalDateTime` sem fuso | Corta o fuso; sem NTP, usa a hora do PC |
+| `valor` | decimal | `Integer` | Arredonda |
+| Heartbeat | evento `HEARTBEAT` | `POST /api/dispositivos/{id}/heartbeat` | Usa a rota de heartbeat e marca a lâmpada como `ONLINE` |
+| Alerta | o evento `ALERTA_*_N2` | alerta criado à parte: `POST /api/eventos/{id}/alerta` | Abre `QUEDA`/`CRITICO`, `INATIVIDADE`/`ALERTA` ou `TEMPERATURA_ALTA`/`ATENCAO`; `BOTAO_OK` resolve |
+
+O app da família consulta a API Java a cada 10 s (`GET /api/idosos/{id}/withAll` e `GET /api/eventos/byOtherFilter`) e muda o status do idoso pelo nível do alerta aberto. Caminho completo: **ESP32 → Wi-Fi → ponte (PC) → API Java (VM) → Oracle → app**.
+
+Para o produto, o certo é a API Java ter uma rota própria para dispositivos, autenticada por uma chave do aparelho (`X-Device-Key`) e abrindo o alerta sozinha. Com isso a ponte deixa de ser necessária.
 
 ---
 

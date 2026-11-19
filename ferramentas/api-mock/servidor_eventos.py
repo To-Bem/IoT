@@ -22,6 +22,15 @@ Rotas
 
 Cada evento recebido é gravado em CSV (evidencias/logs/eventos_recebidos_AAAAMMDD.csv),
 com o horário de chegada e o IP de origem: é a evidência de que o dado atravessou a rede.
+
+Modo ponte para a API Java (o app da família lê os alertas de lá):
+
+    python servidor_eventos.py --java http://localhost:8080
+    python servidor_eventos.py --java http://IP-DA-VM:8080
+
+Nesse modo o servidor sobe na porta 8090 (a 8080 fica para a API Java) e, além de mostrar e gravar
+os eventos, repassa cada um para a API Java no formato dela (ver ponte_java.py). O usuário ADMIN vem
+das variáveis JAVA_EMAIL e JAVA_SENHA (padrão: o admin de desenvolvimento do application.yaml).
 """
 import argparse
 import csv
@@ -30,7 +39,11 @@ import os
 import socket
 import threading
 import time
+import sys
 from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # acha o ponte_java.py ao lado
+from ponte_java import ErroJava, PonteJava  # noqa: E402
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -48,6 +61,7 @@ eventos = []          # memória: lista de dicts
 dispositivos = {}     # id -> {"ultimo": ts, "rssi": int, "ip": str, "offline_avisado": bool}
 trava = threading.Lock()
 arquivo_csv = None
+ponte = None          # PonteJava quando o servidor sobe com --java
 
 
 def ip_local():
@@ -221,16 +235,31 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[201] {ev['recebidoEm'][11:23]}  disp {ev['dispositivoId']}  {ev['tipo']:<26} "
               f"valor={ev['valor']:<7} de {ev['ipOrigem']}{destaque}", flush=True)
         self._json(201, ev)
+        if ponte:
+            ponte.enviar(ev)   # repassa para a API Java em segundo plano
 
 
 def main():
-    global arquivo_csv
+    global arquivo_csv, ponte
     ap = argparse.ArgumentParser(description="Servidor de teste de eventos do Tô Bem")
-    ap.add_argument("--porta", type=int, default=8080)
+    ap.add_argument("--porta", type=int, default=None, help="padrão 8080 (8090 com --java)")
+    ap.add_argument("--java", metavar="URL", help="repassa os eventos para a API Java, ex.: http://localhost:8080")
     padrao_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "evidencias", "logs",
                               f"eventos_recebidos_{datetime.now():%Y%m%d}.csv")
     ap.add_argument("--csv", default=os.path.normpath(padrao_csv), help="arquivo CSV de saída")
     args = ap.parse_args()
+    porta = args.porta or (8090 if args.java else 8080)
+    if args.java:
+        ponte = PonteJava(args.java, os.environ.get("JAVA_EMAIL", "admin@tobem.com"),
+                          os.environ.get("JAVA_SENHA", "Admin@12345"))
+        try:
+            papel = ponte.login()
+            print(f"[JAVA] conectado em {args.java} como {ponte.email} ({papel})", flush=True)
+        except ErroJava as e:
+            print(f"[JAVA] não consegui entrar na API Java: {e}", flush=True)
+            print("[JAVA] confira se a API está no ar e defina JAVA_EMAIL / JAVA_SENHA. Vou tentar de novo a cada evento.",
+                  flush=True)
+        ponte.iniciar()
     arquivo_csv = args.csv
     os.makedirs(os.path.dirname(arquivo_csv), exist_ok=True)
 
@@ -238,12 +267,14 @@ def main():
     ip = ip_local()
     print("=" * 66)
     print(" Tô Bem — servidor de teste de eventos")
-    print(f" No secrets.h do ESP32:  #define SECRET_API_URL \"http://{ip}:{args.porta}/api/eventos\"")
-    print(f" Painel no navegador:    http://localhost:{args.porta}/")
+    print(f" No secrets.h do ESP32:  #define SECRET_API_URL \"http://{ip}:{porta}/api/eventos\"")
+    print(f" Painel no navegador:    http://localhost:{porta}/")
     print(f" Gravando em:            {arquivo_csv}")
+    if ponte:
+        print(f" Repassando para:        API Java em {ponte.base} (linhas [JAVA])")
     print(" Windows: se o ESP32 não conseguir enviar, libere o Python no Firewall (rede privada).")
     print("=" * 66, flush=True)
-    ThreadingHTTPServer(("0.0.0.0", args.porta), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", porta), Handler).serve_forever()
 
 
 if __name__ == "__main__":

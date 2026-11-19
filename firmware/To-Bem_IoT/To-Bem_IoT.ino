@@ -11,6 +11,10 @@
     3) Luz noturna     -> automática, discreta, só de madrugada com a luz apagada
  
   Prioridade dos anéis: ALERTA > feedback de botão > luz principal > luz noturna > apagado
+
+  Rede: Wi-Fi 2,4 GHz (modo estação) -> HTTP POST JSON (POST /api/eventos) -> ponte no PC
+        (ferramentas/api-mock, modo --java) -> API Java -> app da família.
+  Os alertas na casa (luz + buzzer) são decididos aqui no ESP32 e funcionam mesmo sem internet.
 */
  
 #include <WiFi.h>
@@ -20,13 +24,20 @@
  
 // ============================ CONFIGURAÇÃO ============================
 #define RADAR_MODELO 2410        // 2410 = HLK-LD2410C (5V)  |  2420 = HLK-LD2420 (3V3)
-const char* WIFI_SSID  = "SUA_REDE";      // não suba a senha real para o GitHub
-const char* WIFI_SENHA = "SUA_SENHA";
-const char* API_URL    = "";              // ex.: "http://IP-DA-VM:8080/api/eventos" — vazio = só imprime no Serial
+// Credenciais: copie "secrets.example.h" para "secrets.h" (que está no .gitignore) e preencha lá.
+// Sem o secrets.h, o código compila com os valores de exemplo e funciona só no Serial.
+#if __has_include("secrets.h")
+  #include "secrets.h"
+#else
+  #include "secrets.example.h"
+#endif
+const char* WIFI_SSID  = SECRET_WIFI_SSID;
+const char* WIFI_SENHA = SECRET_WIFI_SENHA;
+const char* API_URL    = SECRET_API_URL;  // vazio = só imprime no Serial
 const int   DISPOSITIVO_ID = 1;
  
 const bool DEBUG_RADAR      = false;   // imprime tudo que o radar manda (desligue depois de calibrar)
-const bool DEMO_MADRUGADA   = true;   // true = considera sempre madrugada (para testar a luz noturna)
+const bool DEMO_MADRUGADA   = true;    // true = considera sempre madrugada (para testar a luz noturna)
  
 // Tempos — valores CURTOS para demonstração (produto: ver comentários)
 const unsigned long TEMPO_QUEDA_MS        = 20000;  // parado no chão (produto: 20 min)
@@ -41,16 +52,17 @@ const unsigned long TEMPO_CALOR_MS        = 10000;
 // Radar: como decidir "movimento" (só LD2420) e "chão" (os dois)
 const int  LIMIAR_MOV_CM   = 15;      // variação de distância que conta como movimento
 const unsigned long MOV_JANELA_MS = 1500; // considera "movendo" até 1,5 s após a última variação
-const int  LIMIAR_CHAO_CM  = 200;     // teto real (~2,6 m): >= 200 cm = chão.
-                                      // Na maquete (lâmpada a ~50 cm), use algo como 35.
+const int  LIMIAR_CHAO_CM  = 200;     // CALIBRAR: ponto médio entre "sentado/em pé" e "deitado" (docs/testes.md)
+                                      // Teto real (~2,6 m): ~200 cm. Na maquete o valor é bem menor.
 const int  HISTERESE_CM    = 15;      // para sair do "chão", a distância precisa cair 15 cm abaixo do limiar
-const float SUAVIZACAO_MS     = 1500;     // média móvel da distância: 0.2 = suave, 1.0 = sem filtro
+const float SUAVIZACAO_MS  = 1500;    // tempo de suavização da distância em ms (maior = mais estável, mais lento)
 const unsigned long INTERVALO_EVENTO_MOV_MS = 15000;  // manda MOVIMENTO no máximo a cada 15 s
 const float LIMIAR_CALOR_C = 32.0;
 const unsigned long INTERVALO_STATUS_MS = 1000;   // uma linha de status por segundo
  
-// Brilho: no USB do computador use BAIXO (40). Com a fonte 5V 3A pode subir para 90.
-const uint8_t BRILHO_MAX = 40;
+const unsigned long HTTP_TIMEOUT_MS = 2000;  // se a API não responder, o loop não fica travado
+// Brilho: no USB do computador use BAIXO (25–40). Com a fonte 5V 3A pode subir para 90.
+const uint8_t BRILHO_MAX = 25;
  
 // ============================ PINOS (conforme a montagem do grupo) ============================
 // Anéis de LED — ATENÇÃO: GPIO 34 e 35 são SÓ DE ENTRADA no ESP32 e não conseguem
@@ -157,10 +169,14 @@ void enviarEvento(const char* tipo, float valor = 1) {
   Serial.println("[EVENTO] " + json);
   if (strlen(API_URL) == 0 || WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
+  http.setConnectTimeout(HTTP_TIMEOUT_MS);
+  http.setTimeout(HTTP_TIMEOUT_MS);
   http.begin(API_URL);
   http.addHeader("Content-Type", "application/json");
+  unsigned long t0 = millis();
   int code = http.POST(json);
-  Serial.printf("         -> API respondeu %d\n", code);
+  // latência = tempo do POST até a resposta da API (métrica dos testes)
+  Serial.printf("         -> API respondeu %d em %lu ms\n", code, millis() - t0);
   http.end();
 }
  
@@ -350,10 +366,15 @@ void setup() {
   Serial.println(radar.begin(Serial2) ? "Radar LD2410C conectado" : "Radar LD2410C NÃO respondeu — confira TX/RX (D21/D19) e o 5V");
 #endif
  
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_11dBm);   // menos pico de corrente no USB (evita brownout)
   WiFi.begin(WIFI_SSID, WIFI_SENHA);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) { delay(250); Serial.print("."); }
-  Serial.println(WiFi.status() == WL_CONNECTED ? "\nWi-Fi conectado" : "\nSem Wi-Fi: funcionando só localmente");
+  if (WiFi.status() == WL_CONNECTED)
+    Serial.printf("\nWi-Fi conectado | IP %s | RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  else
+    Serial.println("\nSem Wi-Fi: funcionando só localmente (alertas na casa continuam)");
   configTime(-3 * 3600, 0, "pool.ntp.org");
  
   ultimaPresenca = ultimoMovimento = millis();
@@ -445,17 +466,22 @@ void loop() {
   if (agora - ultimaTempEnviada > TEMPERATURA_MS && !isnan(temperatura)) { enviarEvento("TEMPERATURA", temperatura); ultimaTempEnviada = agora; }
  
   // ---------- Heartbeat ----------
-  if (agora - ultimoHeartbeat > HEARTBEAT_MS) { enviarEvento("HEARTBEAT"); ultimoHeartbeat = agora; }
+  if (agora - ultimoHeartbeat > HEARTBEAT_MS) {
+    // valor do heartbeat = intensidade do sinal Wi-Fi (dBm); 0 = sem Wi-Fi
+    enviarEvento("HEARTBEAT", WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
+    ultimoHeartbeat = agora;
+  }
  
   // ---------- Status ----------
   if (agora - ultimoStatus >= INTERVALO_STATUS_MS) {
     const char* zona = !r.presente ? "ninguém" : (noChao ? "CHÃO" : "sentado/em pé");
     bool radarFalando = (agora - ultimaMsgRadar) < 5000;
-    Serial.printf("[STATUS] OUT=%d serial=%s | presença=%d mov=%d dist=%dcm (%s) | luz=%s noturna=%s | %.1f°C | alerta=%s nível=%d\n",
+    Serial.printf("[STATUS] OUT=%d serial=%s | presença=%d mov=%d dist=%dcm (%s) | luz=%s noturna=%s | %.1f°C | alerta=%s nível=%d | wifi=%d dBm\n",
                   digitalRead(PIN_RADAR_OUT), radarFalando ? "ok" : "SEM DADOS",
                   r.presente, r.movendo, r.distanciaCm, zona,
                   luzPrincipal ? "ON" : "off", millis() < noturnaAte ? "ON" : "off",
-                  temperatura, nomeAlerta(alerta), nivel);
+                  temperatura, nomeAlerta(alerta), nivel,
+                  WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
     ultimoStatus = agora;
   }
  

@@ -235,13 +235,42 @@ python servidor_eventos.py
 3. Cada evento é gravado em `evidencias/logs/eventos_recebidos_AAAAMMDD.csv`, com o horário de chegada e o IP de origem.
 4. Se o ESP32 mostrar `API respondeu -1`, libere o Python no Firewall do Windows (rede privada).
 
-Para usar a API .NET real, troque a URL por `http://IP-PUBLICO-DA-VM:8080/api/eventos`.
+### 5.3 Lâmpada → API Java → app da família
 
-### 5.3 Simulação no Wokwi
+O app da família ([Mobile](https://github.com/To-Bem/Mobile)) lê os alertas da [API Java](https://github.com/To-Bem/JAVA). A API Java só aceita eventos de um usuário ADMIN/MANAGER logado e em outro formato, então o servidor de eventos roda em **modo ponte** no PC: recebe da lâmpada como sempre e repassa para a API Java no formato dela. O firmware não guarda senha de administrador.
+
+| A lâmpada manda | A ponte faz na API Java |
+|---|---|
+| Qualquer evento | `POST /api/dispositivos/{id}/evento` com token de ADMIN, `dataHora` sem fuso e `valor` inteiro |
+| `HEARTBEAT` | `POST /api/dispositivos/{id}/heartbeat` (e marca a lâmpada como `ONLINE` na primeira vez) |
+| `ALERTA_QUEDA_N2` | Evento + alerta `QUEDA` nível `CRITICO` (`POST /api/eventos/{id}/alerta`) |
+| `ALERTA_INATIVIDADE_N2` | Evento + alerta `INATIVIDADE` nível `ALERTA` |
+| `TEMPERATURA_ALTA` | Evento + alerta `TEMPERATURA_ALTA` nível `ATENCAO` |
+| `BOTAO_OK` / `ALERTA_RESOLVIDO_MOVIMENTO` | Evento + marca como `RESOLVIDO` os alertas abertos daquele idoso |
+| `TEMPERATURA` | Evento no máximo a cada 5 min (para não encher a linha do tempo) |
+
+**Preparar (uma vez):**
+
+1. Suba a API Java (local com `mvn spring-boot:run`, ou na VM com `docker compose up -d`).
+2. No repositório Mobile, rode `dart run tool/simular.dart preparar`: ele cria a conta da família, a Dona Maria e as lâmpadas, e mostra o **id de cada dispositivo**. (Ou cadastre o idoso e a lâmpada pelo próprio app; o idoso precisa ter um contato, senão a API não tem a quem mandar o alerta.)
+3. No `To-Bem_IoT.ino`, coloque esse id em `DISPOSITIVO_ID` e faça o upload.
+
+**Rodar:**
+
+```powershell
+cd ferramentas/api-mock
+$env:JAVA_EMAIL = "admin@tobem.com"      # o ADMIN da API Java (.env do repositório JAVA)
+$env:JAVA_SENHA = "Admin@12345"
+python servidor_eventos.py --java http://localhost:8080      # ou http://IP-DA-VM:8080
+```
+
+O servidor sobe na porta **8090** e mostra a linha pronta para o `secrets.h` (`http://IP-DO-PC:8090/api/eventos`). Com o app aberto em **Monitoramento ao vivo**, cada evento aparece no terminal como `[JAVA] ... -> evento #N`, e uma queda vira `+ ALERTA QUEDA (CRITICO)`. Em até 10 s (o intervalo do app), a Dona Maria fica **CRÍTICO** no app da família.
+
+### 5.4 Simulação no Wokwi
 
 Siga [`simulacao-wokwi/README.md`](simulacao-wokwi/README.md). No simulador, o radar é representado por chaves e um potenciômetro, e a base (botões, buzzer, geladeira) está completa.
 
-### 5.4 Métricas e calibração a partir do log
+### 5.5 Métricas e calibração a partir do log
 
 ```bash
 # copie o texto do Monitor Serial para um .txt em evidencias/logs/
@@ -300,7 +329,7 @@ O detalhamento de cada escolha, com as alternativas consideradas, está em **[`d
 │   └── ToBem_Diagnostico/    teste de cada peça
 ├── simulacao-wokwi/          sistema completo no simulador
 ├── ferramentas/
-│   ├── api-mock/             servidor de teste (mesmo contrato da API .NET)
+│   ├── api-mock/             servidor de eventos + ponte para a API Java (--java)
 │   └── analisar_log.py       métricas e calibração a partir do log Serial
 ├── docs/
 │   ├── rede.md               componentes e fluxo de comunicação em rede
@@ -317,7 +346,7 @@ O detalhamento de cada escolha, com as alternativas consideradas, está em **[`d
 | Disciplina | Repositório | Relação com este |
 |---|---|---|
 | .NET — API de telemetria | https://github.com/To-Bem/.NET | Recebe o `POST /api/eventos` do ESP32 |
-| Java — API principal | https://github.com/To-Bem/JAVA | Alertas, contatos e escalonamento consumidos pelo app |
+| Java — API principal | https://github.com/To-Bem/JAVA | Recebe os eventos da lâmpada pela ponte (§5.3) e guarda alertas, contatos e escalonamento consumidos pelo app |
 | Banco de Dados — Oracle + PL/SQL | _link_ | `PRC_REGISTRAR_EVENTO`, `PRC_AVALIAR_RISCO` |
 | Mobile — app | https://github.com/To-Bem/Mobile | Painel da família |
 | DevOps — VM Azure + Docker | https://github.com/To-Bem/JAVA | Hospeda as APIs |

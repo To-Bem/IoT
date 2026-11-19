@@ -92,7 +92,7 @@ Roteiro detalhado em [`simulacao-wokwi/README.md`](../simulacao-wokwi/README.md)
 | R6 | API fora do ar | Fechar o servidor de teste e provocar F5 | Alerta local (luz + buzzer) acontece mesmo assim; `API respondeu -1` sem travar o loop | ⬜ | vídeo + log |
 | R7 | Wi-Fi fora do ar | Desligar o roteador ou mudar a senha no `secrets.h` | "Sem Wi-Fi: funcionando só localmente"; regras locais funcionando | ⬜ | log |
 | R8 | Segundo dispositivo | Ligar o nó da geladeira e abrir a "porta" | `GELADEIRA_ABERTA` com `dispositivoId 2` no painel | ⬜ | print |
-| R9 | API .NET real | Trocar a URL para a VM | 201 e evento no Oracle | ⬜ | print da API + tabela EVENTO |
+| R9 | Lâmpada → API Java → app | `servidor_eventos.py --java URL` e provocar F5/F6 | `[JAVA] ... + ALERTA QUEDA (CRITICO)` no terminal; Dona Maria em CRÍTICO no app em até 10 s; `BOTAO_OK` resolve | ⬜ | print do terminal + print do app |
 
 ```bash
 # R4 — validação do contrato (com o servidor de teste rodando)
