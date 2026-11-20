@@ -223,7 +223,7 @@ Ajustes no topo do `.ino`:
 
 ### 5.2 Testar o fluxo de rede sem a nuvem (servidor de teste)
 
-O servidor de teste aceita o mesmo contrato da API .NET. Precisa só do Python 3.8+, sem instalar nada:
+O servidor de teste recebe o mesmo `POST /api/eventos` que o firmware envia. Precisa só do Python 3.8+, sem instalar nada:
 
 ```bash
 cd ferramentas/api-mock
@@ -234,6 +234,7 @@ python servidor_eventos.py
 2. Abra `http://localhost:8080/` para ver o painel com dispositivos online/offline e os eventos chegando.
 3. Cada evento é gravado em `evidencias/logs/eventos_recebidos_AAAAMMDD.csv`, com o horário de chegada e o IP de origem.
 4. Se o ESP32 mostrar `API respondeu -1`, libere o Python no Firewall do Windows (rede privada).
+5. Para tirar prints ou gravar vídeo, use `python servidor_eventos.py --ocultar-ip`: os IPs aparecem como `x.x.x.x` no terminal, no painel e no CSV.
 
 ### 5.3 Lâmpada → API Java → app da família
 
@@ -259,10 +260,11 @@ O app da família ([Mobile](https://github.com/To-Bem/Mobile)) lê os alertas da
 
 ```powershell
 cd ferramentas/api-mock
-$env:JAVA_EMAIL = "admin@tobem.com"      # o ADMIN da API Java (.env do repositório JAVA)
-$env:JAVA_SENHA = "Admin@12345"
+$env:JAVA_EMAIL = "admin@tobem.com"      # conta ADMIN ou MANAGER da API Java (ADMIN_EMAIL do .env)
 python servidor_eventos.py --java http://localhost:8080      # ou http://IP-DA-VM:8080
 ```
+
+A senha é pedida no terminal e não aparece ao digitar (ou defina `$env:JAVA_SENHA` só nessa janela). Nenhuma senha fica no código nem no README.
 
 O servidor sobe na porta **8090** e mostra a linha pronta para o `secrets.h` (`http://IP-DO-PC:8090/api/eventos`). Com o app aberto em **Monitoramento ao vivo**, cada evento aparece no terminal como `[JAVA] ... -> evento #N`, e uma queda vira `+ ALERTA QUEDA (CRITICO)`. Em até 10 s (o intervalo do app), a Dona Maria fica **CRÍTICO** no app da família.
 
@@ -291,6 +293,12 @@ O plano completo, com casos de teste, critérios de aceite, resultados e limita�
 | W · Base | Botões, buzzer, geladeira, escalonamento completo | Wokwi |
 | R · Rede | Envio pela rede, latência, perda, dispositivo offline, Wi-Fi caído | Protótipo físico + servidor de teste / API .NET |
 
+### Comunicação de ponta a ponta (teste real, 19/11/2026)
+
+A lâmpada (dispositivo 41) envia os eventos do radar pela rede local. A ponte no PC recebe, mostra no painel e repassa para a API Java na VM do Azure, que grava no Oracle (eventos #69 a #77). Endereços IP ocultados.
+
+![Comunicação de ponta a ponta: ESP32, ponte na rede local e API Java no Azure](evidencias/comunicacao-ponta-a-ponta.png)
+
 **Métricas adotadas:** taxa de detecção em N repetições, falsos alertas, tempo até o alerta, estabilidade da distância (desvio padrão), latência do POST até a resposta (mediana e p95), taxa de entrega (respostas 2xx), sinal Wi-Fi (dBm) e reinícios por falta de energia.
 
 ---
@@ -315,7 +323,7 @@ O detalhamento de cada escolha, com as alternativas consideradas, está em **[`d
 - **Calibração por ambiente:** o limite do "chão" depende da altura do teto e da posição da lâmpada. Ventilador, cortina e animais podem gerar movimento falso.
 - **Cobertura:** uma lâmpada monitora um cômodo; uma casa real precisaria de 2 a 3.
 - **Interruptor:** no produto, a lâmpada só funciona com o interruptor ligado. A proposta é travar o interruptor e usar um botão sem fio. Sem heartbeat, o sistema gera aviso técnico, não alarme.
-- **Rede:** o MVP usa HTTP sem TLS e não guarda eventos se o Wi-Fi cair. A evolução prevê HTTPS com token por dispositivo, fila na memória flash e reenvio, MQTT e 4G/SMS como contingência.
+- **Rede:** o MVP usa HTTP sem TLS (na rede local e entre a ponte e a VM) e não guarda eventos se o Wi-Fi cair. A ponte é feita para a rede local: limita o tamanho do corpo, valida os campos e não libera CORS, mas não tem login. A evolução prevê HTTPS com token por dispositivo, fila na memória flash e reenvio, MQTT e 4G/SMS como contingência.
 - **Base física:** botões, buzzer e reed na lâmpada foram validados no Wokwi. No físico, os pinos estão reservados.
 
 ---

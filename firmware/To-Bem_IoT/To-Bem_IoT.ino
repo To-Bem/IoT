@@ -34,7 +34,7 @@
 const char* WIFI_SSID  = SECRET_WIFI_SSID;
 const char* WIFI_SENHA = SECRET_WIFI_SENHA;
 const char* API_URL    = SECRET_API_URL;  // vazio = só imprime no Serial
-const int   DISPOSITIVO_ID = 1;
+const int   DISPOSITIVO_ID = 41;
  
 const bool DEBUG_RADAR      = false;   // imprime tudo que o radar manda (desligue depois de calibrar)
 const bool DEMO_MADRUGADA   = true;    // true = considera sempre madrugada (para testar a luz noturna)

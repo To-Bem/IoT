@@ -2,13 +2,14 @@
 """
 Tô Bem — servidor de teste de eventos (API mock)
 =================================================
-Recebe os eventos do ESP32 pela rede local com o MESMO contrato da API .NET de telemetria
-(POST /api/eventos), para testar e gerar evidências do fluxo de comunicação sem depender da nuvem.
+Recebe os eventos do ESP32 pela rede local no contrato do firmware (POST /api/eventos com JSON),
+para testar e gerar evidências do fluxo de comunicação sem depender da nuvem.
 
 Só usa a biblioteca padrão do Python 3.8+ (nada para instalar).
 
     python servidor_eventos.py               # porta 8080
     python servidor_eventos.py --porta 8081
+    python servidor_eventos.py --ocultar-ip  # troca os IPs por x.x.x.x (para prints e vídeos)
 
 Depois, no secrets.h do firmware:
     #define SECRET_API_URL "http://IP-DESTE-PC:8080/api/eventos"
@@ -29,15 +30,23 @@ Modo ponte para a API Java (o app da família lê os alertas de lá):
     python servidor_eventos.py --java http://IP-DA-VM:8080
 
 Nesse modo o servidor sobe na porta 8090 (a 8080 fica para a API Java) e, além de mostrar e gravar
-os eventos, repassa cada um para a API Java no formato dela (ver ponte_java.py). O usuário ADMIN vem
-das variáveis JAVA_EMAIL e JAVA_SENHA (padrão: o admin de desenvolvimento do application.yaml).
+os eventos, repassa cada um para a API Java no formato dela (ver ponte_java.py). A conta (ADMIN ou
+MANAGER) vem das variáveis JAVA_EMAIL e JAVA_SENHA. Sem JAVA_SENHA, o servidor pede a senha no terminal
+(sem mostrar o que é digitado). Nenhuma senha fica no código.
+
+Segurança (servidor de teste para a rede local, não para a internet)
+  - corpo do POST limitado a 4 KB e campos validados (tipo, dispositivoId, valor, dataHora);
+  - sem CORS: outras páginas abertas no navegador não conseguem ler os eventos;
+  - a memória guarda só os últimos eventos (o CSV guarda todos).
 """
 import argparse
 import csv
+import getpass
 import json
 import os
 import socket
 import threading
+import re
 import time
 import sys
 from datetime import datetime
@@ -56,12 +65,18 @@ TIPOS_VALIDOS = {
 }
 NOMES_DISPOSITIVOS = {1: "Lâmpada (sala)", 2: "Geladeira"}
 OFFLINE_APOS_S = 30  # 3 heartbeats de 10 s sem notícia = offline (aviso técnico, não emergência)
+MAX_CORPO_BYTES = 4096        # um evento tem ~100 bytes; corpo maior é recusado (413)
+MAX_EVENTOS_MEMORIA = 5000    # o painel e a API usam só os últimos; o CSV guarda todos
+DATA_HORA_RE = re.compile(r"^[0-9T:.+\-Z ]{10,35}$")  # ISO 8601, ex.: 2026-11-19T21:29:45-03:00
+IP_OCULTO = "x.x.x.x"
 
 eventos = []          # memória: lista de dicts
 dispositivos = {}     # id -> {"ultimo": ts, "rssi": int, "ip": str, "offline_avisado": bool}
 trava = threading.Lock()
 arquivo_csv = None
 ponte = None          # PonteJava quando o servidor sobe com --java
+ocultar_ip = False    # --ocultar-ip: troca os IPs por x.x.x.x na tela, no painel e no CSV
+proximo_id = 1
 
 
 def ip_local():
@@ -87,15 +102,20 @@ def gravar_csv(ev):
 
 
 def validar(corpo):
-    """Mesmas regras combinadas com a API .NET: 400 se faltar campo, tipo desconhecido etc."""
+    """Regras do contrato POST /api/eventos: 400 se faltar campo, tipo desconhecido etc."""
     if not isinstance(corpo, dict):
         return "o corpo precisa ser um objeto JSON"
-    if not isinstance(corpo.get("dispositivoId"), int) or corpo["dispositivoId"] <= 0:
+    did = corpo.get("dispositivoId")
+    if not isinstance(did, int) or isinstance(did, bool) or not 0 < did < 2**31:
         return "dispositivoId deve ser um inteiro positivo"
     if corpo.get("tipo") not in TIPOS_VALIDOS:
         return f"tipo inválido: {corpo.get('tipo')!r}"
-    if not isinstance(corpo.get("valor", 1), (int, float)):
+    valor = corpo.get("valor", 1)
+    if not isinstance(valor, (int, float)) or isinstance(valor, bool) or abs(valor) > 1e6:
         return "valor deve ser numérico"
+    data_hora = corpo.get("dataHora")
+    if data_hora is not None and (not isinstance(data_hora, str) or not DATA_HORA_RE.match(data_hora)):
+        return "dataHora deve estar no formato ISO 8601"
     return None
 
 
@@ -141,7 +161,7 @@ PAINEL = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
  tr.alerta td{background:#fdecec} tr.resolvido td{background:#e9f7ee}
 </style></head><body>
 <h1>Tô Bem — eventos recebidos pela rede</h1>
-<div class="sub">Servidor de teste (mesmo contrato da API .NET: POST /api/eventos). Atualiza a cada 2 s.</div>
+<div class="sub">__SUBTITULO__ Atualiza a cada 2 s.</div>
 <div class="devs" id="devs"></div>
 <table><thead><tr><th>#</th><th>Recebido em</th><th>Dispositivo</th><th>Tipo</th><th>Valor</th><th>IP de origem</th></tr></thead>
 <tbody id="ev"></tbody></table>
@@ -171,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(corpo)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(corpo)
 
@@ -181,14 +201,23 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         if url.path == "/":
-            corpo = PAINEL.encode("utf-8")
+            if ponte:
+                sub = "Ponte da rede local: recebe POST /api/eventos do ESP32 e repassa para a API Java."
+            else:
+                sub = "Servidor de teste da rede local: recebe POST /api/eventos do ESP32."
+            corpo = PAINEL.replace("__SUBTITULO__", sub).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(corpo)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
             self.end_headers()
             self.wfile.write(corpo)
         elif url.path == "/api/eventos":
-            limite = int(parse_qs(url.query).get("limite", ["50"])[0])
+            try:
+                limite = min(max(int(parse_qs(url.query).get("limite", ["50"])[0]), 1), 500)
+            except ValueError:
+                limite = 50
             with trava:
                 self._json(200, eventos[-limite:])
         elif url.path == "/api/dispositivos":
@@ -200,29 +229,40 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if urlparse(self.path).path != "/api/eventos":
             return self._json(404, {"erro": "rota não encontrada"})
+        ip_origem = IP_OCULTO if ocultar_ip else self.client_address[0]
         try:
             tamanho = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            tamanho = -1
+        if not 0 < tamanho <= MAX_CORPO_BYTES:
+            print(f"[413] {ip_origem} -> corpo vazio ou maior que {MAX_CORPO_BYTES} bytes", flush=True)
+            self.close_connection = True
+            return self._json(413, {"erro": f"corpo deve ter entre 1 e {MAX_CORPO_BYTES} bytes"})
+        try:
             corpo = json.loads(self.rfile.read(tamanho).decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
-            print(f"[400] {self.client_address[0]} -> JSON inválido", flush=True)
+            print(f"[400] {ip_origem} -> JSON inválido", flush=True)
             return self._json(400, {"erro": "JSON inválido"})
         erro = validar(corpo)
         if erro:
-            print(f"[400] {self.client_address[0]} -> {erro}", flush=True)
+            print(f"[400] {ip_origem} -> {erro}", flush=True)
             return self._json(400, {"erro": erro})
 
+        global proximo_id
         with trava:
             ev = {
-                "id": len(eventos) + 1,
+                "id": proximo_id,
                 "recebidoEm": datetime.now().isoformat(timespec="milliseconds"),
-                "ipOrigem": self.client_address[0],
+                "ipOrigem": ip_origem,
                 "dispositivoId": corpo["dispositivoId"],
                 "tipo": corpo["tipo"],
                 "valor": corpo.get("valor", 1),
             }
             if corpo.get("dataHora"):
                 ev["dataHora"] = corpo["dataHora"]
+            proximo_id += 1
             eventos.append(ev)
+            del eventos[:-MAX_EVENTOS_MEMORIA]
             d = dispositivos.setdefault(ev["dispositivoId"], {"offline_avisado": False})
             if d.get("offline_avisado"):
                 print(f"\n=== dispositivo {ev['dispositivoId']} voltou a falar (online)\n", flush=True)
@@ -240,18 +280,22 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global arquivo_csv, ponte
+    global arquivo_csv, ponte, ocultar_ip
     ap = argparse.ArgumentParser(description="Servidor de teste de eventos do Tô Bem")
     ap.add_argument("--porta", type=int, default=None, help="padrão 8080 (8090 com --java)")
     ap.add_argument("--java", metavar="URL", help="repassa os eventos para a API Java, ex.: http://localhost:8080")
     padrao_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "evidencias", "logs",
                               f"eventos_recebidos_{datetime.now():%Y%m%d}.csv")
     ap.add_argument("--csv", default=os.path.normpath(padrao_csv), help="arquivo CSV de saída")
+    ap.add_argument("--ocultar-ip", action="store_true",
+                    help="mostra x.x.x.x no lugar dos IPs (terminal, painel e CSV) — use para prints e vídeos")
     args = ap.parse_args()
+    ocultar_ip = args.ocultar_ip
     porta = args.porta or (8090 if args.java else 8080)
     if args.java:
-        ponte = PonteJava(args.java, os.environ.get("JAVA_EMAIL", "admin@tobem.com"),
-                          os.environ.get("JAVA_SENHA", "Admin@12345"))
+        email = os.environ.get("JAVA_EMAIL") or input("E-mail da conta ADMIN/MANAGER da API Java: ").strip()
+        senha = os.environ.get("JAVA_SENHA") or getpass.getpass(f"Senha de {email} (não aparece ao digitar): ")
+        ponte = PonteJava(args.java, email, senha)
         try:
             papel = ponte.login()
             print(f"[JAVA] conectado em {args.java} como {ponte.email} ({papel})", flush=True)
@@ -264,10 +308,14 @@ def main():
     os.makedirs(os.path.dirname(arquivo_csv), exist_ok=True)
 
     threading.Thread(target=vigiar_offline, daemon=True).start()
-    ip = ip_local()
+    ip = IP_OCULTO if ocultar_ip else ip_local()
     print("=" * 66)
     print(" Tô Bem — servidor de teste de eventos")
-    print(f" No secrets.h do ESP32:  #define SECRET_API_URL \"http://{ip}:{porta}/api/eventos\"")
+    if ocultar_ip:
+        print(f" No secrets.h do ESP32:  #define SECRET_API_URL \"http://IP-DESTE-PC:{porta}/api/eventos\"")
+        print("                         (IP oculto; veja com ipconfig)")
+    else:
+        print(f" No secrets.h do ESP32:  #define SECRET_API_URL \"http://{ip}:{porta}/api/eventos\"")
     print(f" Painel no navegador:    http://localhost:{porta}/")
     print(f" Gravando em:            {arquivo_csv}")
     if ponte:
